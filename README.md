@@ -215,11 +215,11 @@ First, finish the README update and tell me when it has been pushed successfully
 
 ## 📸 Application Screenshots
 
-### Main Dashboard
+### 1. Main Dashboard
 ![Student Performance Prediction Dashboard](screenshots/dashboard.png)
 
-### Prediction History and CSV Export
+### 2. Prediction History and CSV Export
 ![Prediction History](screenshots/prediction_history.png)
 
-### Dataset Analytics and Model Evaluation
+### 3. Dataset Analytics and Model Evaluation
 ![Student Performance Analytics](screenshots/analytics.png)
