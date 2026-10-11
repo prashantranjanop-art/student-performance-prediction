@@ -245,6 +245,58 @@ st.caption(
     "The score is a model estimate and may differ from actual results."
 )
 
+# --------------------------------------------------
+
+st.divider()
+st.subheader("🗂️ Prediction History")
+
+if "prediction_history" not in st.session_state:
+    st.session_state.prediction_history = []
+
+if st.button("➕ Save Current Prediction"):
+    saved_prediction = {
+        "study_hours": study_hours,
+        "attendance": attendance,
+        "previous_score": previous_score,
+        "assignment_completion": assignment_completion,
+        "sleep_hours": sleep_hours,
+        "predicted_score": round(predicted_score, 2),
+        "performance_category": category,
+    }
+
+    st.session_state.prediction_history.append(saved_prediction)
+    st.success("Prediction saved successfully!")
+
+if st.session_state.prediction_history:
+    history_df = pd.DataFrame(st.session_state.prediction_history)
+
+    st.dataframe(history_df, width="stretch")
+
+    csv_data = history_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="📥 Download Prediction History (CSV)",
+        data=csv_data,
+        file_name="student_prediction_history.csv",
+        mime="text/csv",
+    )
+
+    if st.button("🗑️ Clear Prediction History"):
+        st.session_state.prediction_history = []
+        st.rerun()
+
+
+
+    if st.button("🗑️ Clear Prediction History"):
+        st.session_state.prediction_history = []
+        st.rerun()
+
+else:
+    st.info(
+        "No predictions saved yet. Adjust the student information "
+        "in the sidebar and click 'Save Current Prediction'."
+    )
+
 
 # --------------------------------------------------
 # Personalized suggestions
