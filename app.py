@@ -285,12 +285,6 @@ if st.session_state.prediction_history:
         st.session_state.prediction_history = []
         st.rerun()
 
-
-
-    if st.button("🗑️ Clear Prediction History"):
-        st.session_state.prediction_history = []
-        st.rerun()
-
 else:
     st.info(
         "No predictions saved yet. Adjust the student information "
@@ -417,6 +411,96 @@ else:
         "Dataset not found. Generate it using "
         "'python src/generate_data.py'."
     )
+
+# --------------------------------------------------
+# Actual vs Predicted Score Analysis
+# --------------------------------------------------
+
+st.divider()
+st.header("🎯 Actual vs Predicted Score Analysis")
+
+if data is not None:
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import mean_absolute_error
+    import numpy as np
+
+    features = artifact["features"]
+
+    X = data[features]
+    y = data["final_score"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.20,
+        random_state=42,
+    )
+
+    test_predictions = model.predict(X_test)
+
+    comparison_df = pd.DataFrame({
+        "Actual Score": y_test.to_numpy(),
+        "Predicted Score": test_predictions,
+    })
+
+    comparison_df["Prediction Error"] = (
+        comparison_df["Actual Score"]
+        - comparison_df["Predicted Score"]
+    )
+
+    comparison_col1, comparison_col2 = st.columns(2)
+
+    with comparison_col1:
+        st.metric(
+            "Test Dataset MAE",
+            f"{mean_absolute_error(y_test, test_predictions):.2f}",
+        )
+
+    with comparison_col2:
+        st.metric(
+            "Records Compared",
+            f"{len(comparison_df):,}",
+        )
+
+    fig, ax = plt.subplots()
+
+    ax.scatter(
+        comparison_df["Actual Score"],
+        comparison_df["Predicted Score"],
+        alpha=0.6,
+    )
+
+    ax.plot(
+        [0, 100],
+        [0, 100],
+        linestyle="--",
+    )
+
+    ax.set_xlabel("Actual Score")
+    ax.set_ylabel("Predicted Score")
+    ax.set_title("Actual vs Predicted Scores")
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 100)
+
+    st.pyplot(fig)
+    plt.close(fig)
+
+    st.caption(
+        "Points closer to the diagonal line represent predictions "
+        "closer to the actual scores. This evaluation uses synthetic data."
+    )
+
+    with st.expander("View sample prediction comparisons"):
+        st.dataframe(
+            comparison_df.head(20).round(2),
+            width="stretch",
+        )
+
+else:
+    st.warning(
+        "Generate the dataset before viewing prediction comparisons."
+    )
+
 
 
 # --------------------------------------------------

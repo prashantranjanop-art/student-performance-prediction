@@ -212,3 +212,14 @@ Your repository is here:
 After the README is uploaded, we'll move on to **Step 8: Add screenshots of your working dashboard to GitHub**. This helps visitors understand the application before they install or run it.
 
 First, finish the README update and tell me when it has been pushed successfully.
+
+## 📸 Application Screenshots
+
+### Main Dashboard
+![Student Performance Prediction Dashboard](screenshots/dashboard.png)
+
+### Prediction History and CSV Export
+![Prediction History](screenshots/prediction_history.png)
+
+### Dataset Analytics and Model Evaluation
+![Student Performance Analytics](screenshots/analytics.png)
