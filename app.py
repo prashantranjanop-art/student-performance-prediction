@@ -171,20 +171,52 @@ st.caption(
 
 st.subheader("🤖 Model Performance")
 
+metrics = artifact.get("metrics", {})
+
 metric_col1, metric_col2, metric_col3 = st.columns(3)
 
 with metric_col1:
-    st.metric("Mean Absolute Error (MAE)", "4.29")
+    mae = metrics.get("mae")
+    st.metric(
+        "Mean Absolute Error (MAE)",
+        f"{mae:.2f}" if mae is not None else "N/A",
+    )
 
 with metric_col2:
-    st.metric("Root Mean Squared Error (RMSE)", "5.48")
+    rmse = metrics.get("rmse")
+    st.metric(
+        "Root Mean Squared Error (RMSE)",
+        f"{rmse:.2f}" if rmse is not None else "N/A",
+    )
 
 with metric_col3:
-    st.metric("R² Score", "0.810")
+    r2 = metrics.get("r2")
+    st.metric(
+        "R² Score",
+        f"{r2:.3f}" if r2 is not None else "N/A",
+    )
+
+training_records = artifact.get("training_records")
+testing_records = artifact.get("testing_records")
+
+record_col1, record_col2 = st.columns(2)
+
+with record_col1:
+    st.metric(
+        "Training Records",
+        f"{training_records:,}" if training_records is not None else "N/A",
+    )
+
+with record_col2:
+    st.metric(
+        "Testing Records",
+        f"{testing_records:,}" if testing_records is not None else "N/A",
+    )
 
 st.caption(
-    "Evaluation results from the held-out synthetic test dataset. "
-    "These metrics may differ when the model is retrained."
+    "Metrics were calculated on a held-out test set from synthetic data. "
+    "They describe performance on this dataset and do not guarantee "
+    "accuracy on real student outcomes."
 )
 
 col1, col2, col3 = st.columns(3)

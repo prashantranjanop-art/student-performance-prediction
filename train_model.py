@@ -75,16 +75,25 @@ def train_model():
     print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
     print(f"R² Score: {r2:.3f}")
 
-    # Save model and metadata
+    # Save model, metadata, and evaluation metrics
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
     artifact = {
         "model": model,
         "features": features,
         "target": "final_score",
+        "metrics": {
+            "mae": float(mae),
+            "rmse": float(rmse),
+            "r2": float(r2),
+        },
+        "training_records": int(len(X_train)),
+        "testing_records": int(len(X_test)),
     }
 
     joblib.dump(artifact, MODEL_PATH)
+
+
 
     print(f"\nModel saved successfully:\n{MODEL_PATH}")
 
