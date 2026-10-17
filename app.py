@@ -803,51 +803,319 @@ else:
         )
 
 # --------------------------------------------------
-# Personalized suggestions
+# Personalized Student Insights & Recommendations
 # --------------------------------------------------
 
-st.subheader("💡 Suggestions")
+st.divider()
 
-suggestions = []
+st.header("💡 Personalized Student Insights & Recommendations")
 
+st.write(
+    "Understand the current student profile, identify positive "
+    "indicators, and get practical suggestions for improvement."
+)
+
+st.caption(
+    "Recommendations use simple, transparent rules based on the "
+    "entered values. They are guidance, not guarantees of academic results."
+)
+
+# --------------------------------------------------
+# Part 1: Interpret the current prediction
+# --------------------------------------------------
+
+st.subheader("🎯 Prediction Interpretation")
+
+interpretation_col1, interpretation_col2 = st.columns(2)
+
+with interpretation_col1:
+    st.metric(
+        "Estimated Final Score",
+        f"{predicted_score:.2f}/100",
+    )
+
+with interpretation_col2:
+    st.metric(
+        "Predicted Performance Category",
+        category,
+    )
+
+st.info(
+    f"The model estimates a score of {predicted_score:.2f}/100 "
+    f"and classifies the current inputs as '{category}'. "
+    "This is an estimate from a model trained on synthetic data, "
+    "not a guarantee of the student's actual examination result."
+)
+
+# --------------------------------------------------
+# Part 2: Identify positive indicators
+# --------------------------------------------------
+
+st.subheader("🌟 Positive Indicators")
+
+insight_strengths = []
+
+if attendance >= 90:
+    insight_strengths.append(
+        f"Attendance is {attendance:.0f}%, meeting the dashboard's "
+        "90% positive-indicator threshold."
+    )
+
+if previous_score >= 75:
+    insight_strengths.append(
+        f"The previous score is {previous_score:.0f}/100, "
+        "meeting the dashboard's 75-point positive-indicator threshold."
+    )
+
+if assignment_completion >= 90:
+    insight_strengths.append(
+        f"Assignment completion is {assignment_completion:.0f}%, "
+        "meeting the dashboard's 90% positive-indicator threshold."
+    )
+
+if insight_strengths:
+    for strength in insight_strengths:
+        st.success(f"✅ {strength}")
+else:
+    st.info(
+        "No positive indicators were flagged by the dashboard's "
+        "selected thresholds. This does not mean the student lacks "
+        "strengths; it simply means these particular thresholds "
+        "were not met."
+    )
+
+# --------------------------------------------------
+# Part 3: Generate personalized recommendations
+# --------------------------------------------------
+
+st.subheader("📝 Recommended Actions")
+
+insight_recommendations = []
+
+# Study hours
 if study_hours < 3:
-    suggestions.append(
-        "Consider establishing a consistent study routine "
-        "with manageable daily goals."
+    insight_recommendations.append(
+        {
+            "priority": "Medium",
+            "area": "Study Routine",
+            "observation": (
+                f"The entered study time is {study_hours:.1f} hours "
+                "per day, below the dashboard's 3-hour review threshold."
+            ),
+            "action": (
+                "Build a manageable, consistent study schedule. "
+                "Break learning into focused sessions and set a "
+                "clear goal for each session."
+            ),
+        }
     )
 
+# Attendance
 if attendance < 75:
-    suggestions.append(
-        "Improving class attendance may help you keep up "
-        "with lessons and assignments."
+    priority = "High" if attendance < 60 else "Medium"
+
+    insight_recommendations.append(
+        {
+            "priority": priority,
+            "area": "Attendance",
+            "observation": (
+                f"Attendance is {attendance:.0f}%, below the "
+                "dashboard's 75% review threshold."
+            ),
+            "action": (
+                "Attend scheduled classes consistently where possible. "
+                "For missed lessons, review the notes and ask a teacher "
+                "for help with topics you do not understand."
+            ),
+        }
     )
 
+# Previous score
 if previous_score < 50:
-    suggestions.append(
-        "Review foundational concepts and practise topics "
-        "that have been difficult."
+    insight_recommendations.append(
+        {
+            "priority": "Medium",
+            "area": "Previous Academic Performance",
+            "observation": (
+                f"The previous score is {previous_score:.0f}/100, "
+                "below the dashboard's 50-point review threshold."
+            ),
+            "action": (
+                "Identify difficult topics, revise their basic concepts, "
+                "and practise questions. Ask a teacher for feedback "
+                "on areas that remain unclear."
+            ),
+        }
     )
 
+# Assignment completion
 if assignment_completion < 70:
-    suggestions.append(
-        "Try planning assignments ahead of their deadlines "
-        "and tracking your progress."
+    insight_recommendations.append(
+        {
+            "priority": "Medium",
+            "area": "Assignment Completion",
+            "observation": (
+                f"Assignment completion is {assignment_completion:.0f}%, "
+                "below the dashboard's 70% review threshold."
+            ),
+            "action": (
+                "Break assignments into smaller tasks, set milestones, "
+                "and review upcoming deadlines regularly."
+            ),
+        }
     )
 
+# Sleep
 if sleep_hours < 6:
-    suggestions.append(
-        "Consider maintaining a regular sleep schedule "
-        "that supports your learning and wellbeing."
+    insight_recommendations.append(
+        {
+            "priority": "Medium",
+            "area": "Sleep Routine",
+            "observation": (
+                f"The entered sleep duration is {sleep_hours:.1f} hours "
+                "per night, below the dashboard's 6-hour review threshold."
+            ),
+            "action": (
+                "Try to maintain a consistent sleep schedule and make "
+                "enough room for rest instead of sacrificing sleep "
+                "to study."
+            ),
+        }
     )
 
-if not suggestions:
-    suggestions.append(
-        "Continue building consistent study habits and "
-        "review your progress regularly."
+# Predicted score
+if predicted_score < 40:
+    insight_recommendations.append(
+        {
+            "priority": "Medium",
+            "area": "Predicted Score Review",
+            "observation": (
+                "The model's estimated score falls in the "
+                "'Needs Improvement' category."
+            ),
+            "action": (
+                "Use the estimate as a prompt to review difficult topics, "
+                "check understanding with practice questions, and seek "
+                "teacher feedback. Do not treat the estimate as a fixed outcome."
+            ),
+        }
     )
 
-for suggestion in suggestions:
-    st.write(f"• {suggestion}")
+elif predicted_score < 60:
+    insight_recommendations.append(
+        {
+            "priority": "Low",
+            "area": "Predicted Score Review",
+            "observation": (
+                "The model's estimated score falls in the 'Average' category."
+            ),
+            "action": (
+                "Choose one or two topics to practise regularly and "
+                "review progress using actual test results and feedback."
+            ),
+        }
+    )
+
+# Default recommendation when no thresholds are triggered
+if not insight_recommendations:
+    insight_recommendations.append(
+        {
+            "priority": "Routine",
+            "area": "Maintain Progress",
+            "observation": (
+                "The current inputs did not trigger the dashboard's "
+                "review thresholds."
+            ),
+            "action": (
+                "Continue consistent study habits, revise challenging "
+                "topics, and use actual assessments and teacher feedback "
+                "to decide what to improve next."
+            ),
+        }
+    )
+
+# Display recommendations
+for recommendation in insight_recommendations:
+
+    st.markdown(
+        f"**{recommendation['priority']} priority — "
+        f"{recommendation['area']}**"
+    )
+
+    st.write(
+        f"**Observation:** {recommendation['observation']}"
+    )
+
+    st.write(
+        f"**Suggested action:** {recommendation['action']}"
+    )
+
+    st.divider()
+
+# --------------------------------------------------
+# Part 4: Student Insights Report
+# --------------------------------------------------
+
+st.subheader("📥 Download Student Insights Report")
+
+st.write(
+    "Export the current inputs, predicted score, performance category, "
+    "positive indicators, and personalized recommendations."
+)
+
+insights_report = {
+    "generated_at": pd.Timestamp.now(
+        tz="Asia/Kolkata"
+    ).isoformat(timespec="seconds"),
+
+    "study_hours_per_day": study_hours,
+    "attendance_percent": attendance,
+    "previous_score": previous_score,
+    "assignment_completion_percent": assignment_completion,
+    "sleep_hours_per_night": sleep_hours,
+
+    "predicted_score": round(predicted_score, 2),
+    "performance_category": category,
+
+    "positive_indicators": (
+        " | ".join(insight_strengths)
+        if insight_strengths
+        else "No predefined positive indicators flagged"
+    ),
+
+    "recommendations": " | ".join(
+        [
+            (
+                f"{item['priority']} priority - {item['area']}: "
+                f"{item['action']}"
+            )
+            for item in insight_recommendations
+        ]
+    ),
+
+    "disclaimer": (
+        "The score is a model estimate based on synthetic training data. "
+        "Recommendations are rule-based guidance and do not guarantee "
+        "academic outcomes."
+    ),
+}
+
+insights_report_df = pd.DataFrame([insights_report])
+
+st.download_button(
+    label="📥 Download Student Insights Report (CSV)",
+    data=insights_report_df.to_csv(
+        index=False
+    ).encode("utf-8-sig"),
+    file_name="student_performance_insights_report.csv",
+    mime="text/csv",
+    key="download_student_insights_report",
+)
+
+st.caption(
+    "The positive-indicator and review thresholds are demonstration "
+    "settings. They can be adjusted to suit your project's requirements."
+)
 
 
 # --------------------------------------------------
