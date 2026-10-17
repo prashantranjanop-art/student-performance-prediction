@@ -254,7 +254,10 @@ st.caption(
 
 st.subheader("📋 Prediction History")
 
-if st.button("➕ Save Current Prediction"):
+if st.button(
+    "➕ Save Current Prediction",
+    key="save_prediction_btn",
+):
     try:
         prediction_id = database.save_prediction(
             study_hours=study_hours,
@@ -266,8 +269,8 @@ if st.button("➕ Save Current Prediction"):
             performance=category,
         )
 
-        st.success(
-            f"Prediction #{prediction_id} saved permanently!"
+        st.session_state["prediction_save_message"] = (
+            f"Prediction #{prediction_id} saved successfully!"
         )
         st.rerun()
 
@@ -275,48 +278,127 @@ if st.button("➕ Save Current Prediction"):
         st.error(f"Could not save prediction: {error}")
 
 
-# Load saved predictions from SQLite
+# Display the save confirmation after rerunning.
+if st.session_state.get("prediction_save_message"):
+    st.success(st.session_state["prediction_save_message"])
+    st.session_state["prediction_save_message"] = None
+
+
+# --------------------------------------------------
+# Load and Display Prediction History
+# --------------------------------------------------
+
 try:
     saved_predictions = database.get_all_predictions()
 
     if saved_predictions:
         history_df = pd.DataFrame(saved_predictions)
 
-        # Use a clearer column name in the dashboard
         history_df = history_df.rename(
             columns={"performance": "performance_category"}
         )
 
+        st.subheader("🔎 Search and Filter Predictions")
+
+        search_id = st.text_input(
+            "Search by Prediction ID",
+            placeholder="Enter an ID, e.g. 5",
+            key="search_prediction_id",
+        )
+
+        categories = ["All"] + sorted(
+            history_df["performance_category"]
+            .dropna()
+            .unique()
+            .tolist()
+        )
+
+        selected_category = st.selectbox(
+            "Filter by Performance Category",
+            categories,
+            key="filter_prediction_category",
+        )
+
+        sort_option = st.selectbox(
+            "Sort Predictions By",
+            [
+                "Newest First",
+                "Oldest First",
+                "Highest Predicted Score",
+                "Lowest Predicted Score",
+            ],
+            key="sort_prediction_history",
+        )
+
+        filtered_df = history_df.copy()
+
+        if search_id.strip():
+            filtered_df = filtered_df[
+                filtered_df["id"]
+                .astype(str)
+                .str.contains(search_id.strip(), regex=False)
+            ]
+
+        if selected_category != "All":
+            filtered_df = filtered_df[
+                filtered_df["performance_category"] == selected_category
+            ]
+
+        if sort_option == "Newest First":
+            filtered_df = filtered_df.sort_values(
+                "created_at", ascending=False
+            )
+        elif sort_option == "Oldest First":
+            filtered_df = filtered_df.sort_values(
+                "created_at", ascending=True
+            )
+        elif sort_option == "Highest Predicted Score":
+            filtered_df = filtered_df.sort_values(
+                "predicted_score", ascending=False
+            )
+        else:
+            filtered_df = filtered_df.sort_values(
+                "predicted_score", ascending=True
+            )
+
+        st.caption(
+            f"Showing {len(filtered_df)} of "
+            f"{len(history_df)} saved predictions."
+        )
+
         st.dataframe(
-            history_df,
+            filtered_df,
             width="stretch",
             hide_index=True,
         )
 
-        # Download prediction history
-        csv_data = history_df.to_csv(index=False).encode("utf-8")
+        csv_data = filtered_df.to_csv(index=False).encode("utf-8")
 
         st.download_button(
-            label="📥 Download Prediction History (CSV)",
+            label="📥 Download Filtered Predictions (CSV)",
             data=csv_data,
             file_name="student_prediction_history.csv",
             mime="text/csv",
+            key="download_filtered_predictions",
         )
 
-        # Clear permanently saved history
-        if st.button("🗑️ Clear Prediction History"):
+        if st.button(
+            "🗑️ Clear Prediction History",
+            key="clear_prediction_history_btn",
+        ):
             database.delete_all_predictions()
-            st.success("Prediction history cleared successfully!")
+            st.session_state["prediction_save_message"] = None
             st.rerun()
 
     else:
         st.info(
-            "No predictions saved yet. Adjust the student information "
-            "in the sidebar and click 'Save Current Prediction'."
+            "No predictions saved yet. Adjust the sidebar inputs "
+            "and click 'Save Current Prediction'."
         )
 
 except Exception as error:
     st.error(f"Could not load prediction history: {error}")
+
 
 # --------------------------------------------------
 # Personalized suggestions
