@@ -401,6 +401,408 @@ except Exception as error:
 
 
 # --------------------------------------------------
+# Student Performance Comparison Dashboard
+# --------------------------------------------------
+
+st.divider()
+
+st.header("📊 Student Performance Comparison Dashboard")
+
+st.write(
+    "Compare saved predictions, explore performance patterns, "
+    "and download useful reports from your prediction history."
+)
+
+st.caption(
+    "This dashboard compares saved prediction records by ID. "
+    "The scores are model estimates, not actual examination results."
+)
+
+# --------------------------------------------------
+# Load all saved predictions
+# --------------------------------------------------
+
+dashboard_load_error = None
+
+try:
+    comparison_all_df = pd.DataFrame(
+        database.get_all_predictions()
+    )
+except Exception as error:
+    dashboard_load_error = error
+    comparison_all_df = pd.DataFrame()
+
+if dashboard_load_error is not None:
+
+    st.error(
+        f"Could not load comparison dashboard data: "
+        f"{dashboard_load_error}"
+    )
+
+elif comparison_all_df.empty:
+
+    st.info(
+        "No saved predictions are available yet. "
+        "Generate and save at least one prediction to get started."
+    )
+
+else:
+
+    # Prepare the database records for analysis.
+    comparison_all_df = comparison_all_df.rename(
+        columns={"performance": "performance_category"}
+    )
+
+    numeric_columns = [
+        "id",
+        "study_hours",
+        "attendance",
+        "previous_score",
+        "assignment_completion",
+        "sleep_hours",
+        "predicted_score",
+    ]
+
+    for column in numeric_columns:
+        comparison_all_df[column] = pd.to_numeric(
+            comparison_all_df[column],
+            errors="coerce",
+        )
+
+    comparison_all_df = comparison_all_df.dropna(
+        subset=["id", "predicted_score"]
+    ).copy()
+
+    comparison_all_df["id"] = (
+        comparison_all_df["id"].astype(int)
+    )
+
+    comparison_all_df["performance_category"] = (
+        comparison_all_df["performance_category"]
+        .fillna("Unknown")
+        .astype(str)
+    )
+
+    # --------------------------------------------------
+    # Part 1: Overall insights
+    # --------------------------------------------------
+
+    st.subheader("📈 Saved Prediction Overview")
+
+    total_predictions = len(comparison_all_df)
+
+    average_score = comparison_all_df[
+        "predicted_score"
+    ].mean()
+
+    average_attendance = comparison_all_df[
+        "attendance"
+    ].mean()
+
+    average_study_hours = comparison_all_df[
+        "study_hours"
+    ].mean()
+
+    highest_prediction = comparison_all_df.loc[
+        comparison_all_df["predicted_score"].idxmax()
+    ]
+
+    metric1, metric2, metric3, metric4 = st.columns(4)
+
+    with metric1:
+        st.metric(
+            "Total Saved Predictions",
+            f"{total_predictions:,}",
+        )
+
+    with metric2:
+        st.metric(
+            "Average Predicted Score",
+            f"{average_score:.2f}/100",
+        )
+
+    with metric3:
+        st.metric(
+            "Average Attendance",
+            f"{average_attendance:.1f}%",
+        )
+
+    with metric4:
+        st.metric(
+            "Average Study Hours",
+            f"{average_study_hours:.1f} hrs/day",
+        )
+
+    st.info(
+        f"The highest saved predicted score is "
+        f"{highest_prediction['predicted_score']:.2f}/100 "
+        f"(Prediction #{highest_prediction['id']})."
+    )
+
+    # --------------------------------------------------
+    # Part 2: Performance distribution
+    # --------------------------------------------------
+
+    st.subheader("📊 Performance Category Distribution")
+
+    category_order = [
+        "Needs Improvement",
+        "Average",
+        "Good",
+        "Excellent",
+    ]
+
+    existing_categories = (
+        comparison_all_df["performance_category"]
+        .unique()
+        .tolist()
+    )
+
+    all_categories = category_order + [
+        category
+        for category in sorted(existing_categories)
+        if category not in category_order
+    ]
+
+    distribution_df = pd.DataFrame(
+        {
+            "performance_category": all_categories,
+            "prediction_count": [
+                int(
+                    (
+                        comparison_all_df[
+                            "performance_category"
+                        ] == category
+                    ).sum()
+                )
+                for category in all_categories
+            ],
+        }
+    )
+
+    st.bar_chart(
+        distribution_df,
+        x="performance_category",
+        y="prediction_count",
+        width="stretch",
+    )
+
+    st.caption(
+        "This chart counts saved predictions in each category. "
+        "It does not represent the actual performance of a "
+        "student population."
+    )
+
+    # --------------------------------------------------
+    # Part 3: Select predictions to compare
+    # --------------------------------------------------
+
+    st.subheader("🔎 Compare Multiple Predictions")
+
+    st.write(
+        "Choose the saved prediction records you want to compare. "
+        "The three most recent records are selected by default."
+    )
+
+    prediction_labels = {
+        int(row["id"]): (
+            f"Prediction #{int(row['id'])} — "
+            f"{row['predicted_score']:.1f}/100"
+        )
+        for _, row in comparison_all_df.iterrows()
+    }
+
+    prediction_ids = list(prediction_labels.keys())
+
+    selected_ids = st.multiselect(
+        "Select prediction records",
+        options=prediction_ids,
+        default=prediction_ids[:min(3, len(prediction_ids))],
+        format_func=lambda prediction_id: (
+            prediction_labels[prediction_id]
+        ),
+        key="comparison_selected_prediction_ids",
+    )
+
+    selected_comparison_df = comparison_all_df[
+        comparison_all_df["id"].isin(selected_ids)
+    ].sort_values("id").copy()
+
+    if selected_comparison_df.empty:
+
+        st.warning(
+            "Select at least one prediction to view the comparison."
+        )
+
+    else:
+
+        # --------------------------------------------------
+        # Part 4: Comparison metrics
+        # --------------------------------------------------
+
+        st.subheader("📌 Selected Prediction Summary")
+
+        selected_average = selected_comparison_df[
+            "predicted_score"
+        ].mean()
+
+        selected_highest = selected_comparison_df.loc[
+            selected_comparison_df["predicted_score"].idxmax()
+        ]
+
+        selected_lowest = selected_comparison_df.loc[
+            selected_comparison_df["predicted_score"].idxmin()
+        ]
+
+        compare_col1, compare_col2, compare_col3 = st.columns(3)
+
+        with compare_col1:
+            st.metric(
+                "Records Selected",
+                len(selected_comparison_df),
+            )
+
+        with compare_col2:
+            st.metric(
+                "Average Predicted Score",
+                f"{selected_average:.2f}/100",
+            )
+
+        with compare_col3:
+            st.metric(
+                "Highest Selected Score",
+                f"{selected_highest['predicted_score']:.2f}/100",
+                help=(
+                    f"Prediction #{selected_highest['id']}"
+                ),
+            )
+
+        # --------------------------------------------------
+        # Part 5: Interactive comparison charts
+        # --------------------------------------------------
+
+        st.subheader("📉 Study Habits and Predicted Scores")
+
+        chart_col1, chart_col2 = st.columns(2)
+
+        with chart_col1:
+
+            st.markdown("**Study Hours vs Predicted Score**")
+
+            st.scatter_chart(
+                selected_comparison_df,
+                x="study_hours",
+                y="predicted_score",
+                color="performance_category",
+                size="attendance",
+                width="stretch",
+            )
+
+        with chart_col2:
+
+            st.markdown("**Attendance vs Predicted Score**")
+
+            st.scatter_chart(
+                selected_comparison_df,
+                x="attendance",
+                y="predicted_score",
+                color="performance_category",
+                size="study_hours",
+                width="stretch",
+            )
+
+        # --------------------------------------------------
+        # Part 6: Detailed comparison table
+        # --------------------------------------------------
+
+        st.subheader("📋 Detailed Prediction Comparison")
+
+        display_columns = [
+            "id",
+            "study_hours",
+            "attendance",
+            "previous_score",
+            "assignment_completion",
+            "sleep_hours",
+            "predicted_score",
+            "performance_category",
+            "created_at",
+        ]
+
+        comparison_table = selected_comparison_df[
+            display_columns
+        ].copy()
+
+        comparison_table = comparison_table.round(
+            {
+                "study_hours": 1,
+                "attendance": 1,
+                "previous_score": 1,
+                "assignment_completion": 1,
+                "sleep_hours": 1,
+                "predicted_score": 2,
+            }
+        )
+
+        comparison_table = comparison_table.rename(
+            columns={
+                "id": "prediction_id",
+                "performance_category": "performance",
+            }
+        )
+
+        st.dataframe(
+            comparison_table,
+            width="stretch",
+            hide_index=True,
+        )
+
+    # --------------------------------------------------
+    # Part 7: Downloadable reports
+    # --------------------------------------------------
+
+    st.subheader("📥 Download Comparison Reports")
+
+    download_col1, download_col2, download_col3 = st.columns(3)
+
+    with download_col1:
+
+        st.download_button(
+            label="Selected Comparison CSV",
+            data=selected_comparison_df.to_csv(
+                index=False
+            ).encode("utf-8-sig"),
+            file_name="student_prediction_comparison.csv",
+            mime="text/csv",
+            disabled=selected_comparison_df.empty,
+            key="download_comparison_dashboard_csv",
+        )
+
+    with download_col2:
+
+        st.download_button(
+            label="All Saved Predictions CSV",
+            data=comparison_all_df.to_csv(
+                index=False
+            ).encode("utf-8-sig"),
+            file_name="all_student_predictions.csv",
+            mime="text/csv",
+            key="download_all_dashboard_predictions_csv",
+        )
+
+    with download_col3:
+
+        st.download_button(
+            label="Category Distribution CSV",
+            data=distribution_df.to_csv(
+                index=False
+            ).encode("utf-8-sig"),
+            file_name="student_performance_distribution.csv",
+            mime="text/csv",
+            key="download_category_distribution_csv",
+        )
+
+# --------------------------------------------------
 # Personalized suggestions
 # --------------------------------------------------
 
