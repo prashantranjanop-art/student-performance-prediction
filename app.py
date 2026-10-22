@@ -1111,6 +1111,592 @@ st.download_button(
     mime="text/csv",
     key="download_student_insights_report",
 )
+# --------------------------------------------------
+# PDF Student Performance Report Generator
+# --------------------------------------------------
+
+st.markdown("### 📄 Professional PDF Report")
+
+st.write(
+    "Download a formatted report containing the current prediction, "
+    "academic inputs, personalized recommendations, model metrics, "
+    "and visual summaries."
+)
+
+
+def create_student_performance_pdf():
+    """Generate an individual student performance report as a PDF."""
+
+    from io import BytesIO
+    from xml.sax.saxutils import escape
+
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import (
+        getSampleStyleSheet,
+        ParagraphStyle,
+    )
+    from reportlab.lib.units import inch
+    from reportlab.platypus import (
+        SimpleDocTemplate,
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle,
+        Image as ReportLabImage,
+        KeepTogether,
+    )
+
+    # Create the PDF in memory.
+    pdf_buffer = BytesIO()
+
+    page_width, page_height = A4
+
+    document = SimpleDocTemplate(
+        pdf_buffer,
+        pagesize=A4,
+        rightMargin=42,
+        leftMargin=42,
+        topMargin=42,
+        bottomMargin=42,
+        title="Student Performance Report",
+        author="Student Performance Predictor",
+    )
+
+    # --------------------------------------------------
+    # PDF styles
+    # --------------------------------------------------
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "StudentReportTitle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        leading=25,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#164E63"),
+        spaceAfter=8,
+    )
+
+    subtitle_style = ParagraphStyle(
+        "StudentReportSubtitle",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=13,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#64748B"),
+        spaceAfter=18,
+    )
+
+    heading_style = ParagraphStyle(
+        "StudentReportHeading",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=17,
+        textColor=colors.HexColor("#164E63"),
+        spaceBefore=10,
+        spaceAfter=7,
+    )
+
+    body_style = ParagraphStyle(
+        "StudentReportBody",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=9,
+        leading=13,
+        spaceAfter=6,
+    )
+
+    small_style = ParagraphStyle(
+        "StudentReportSmall",
+        parent=styles["Normal"],
+        fontSize=8,
+        leading=11,
+        textColor=colors.HexColor("#475569"),
+        spaceAfter=5,
+    )
+
+    recommendation_heading_style = ParagraphStyle(
+        "StudentRecommendationHeading",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+        spaceAfter=4,
+    )
+
+    # --------------------------------------------------
+    # Report header
+    # --------------------------------------------------
+
+    story = []
+
+    generated_at = pd.Timestamp.now(
+        tz="Asia/Kolkata"
+    ).strftime("%d %B %Y, %I:%M %p IST")
+
+    story.append(
+        Paragraph(
+            "STUDENT PERFORMANCE REPORT",
+            title_style,
+        )
+    )
+
+    story.append(
+        Paragraph(
+            f"Generated on {escape(generated_at)}",
+            subtitle_style,
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "Report Summary",
+            heading_style,
+        )
+    )
+
+    # --------------------------------------------------
+    # Prediction summary
+    # --------------------------------------------------
+
+    summary_data = [
+        ["Predicted Final Score", f"{predicted_score:.2f}/100"],
+        ["Performance Category", str(category)],
+        ["Daily Study Hours", f"{study_hours:.1f} hours"],
+    ]
+
+    summary_table = Table(
+        summary_data,
+        colWidths=[245, 225],
+        hAlign="LEFT",
+    )
+
+    summary_table.setStyle(
+        TableStyle(
+            [
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (0, -1),
+                    colors.HexColor("#E0F2FE"),
+                ),
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, -1),
+                    colors.HexColor("#1E293B"),
+                ),
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+
+    story.append(summary_table)
+    story.append(Spacer(1, 12))
+
+    # --------------------------------------------------
+    # Academic inputs
+    # --------------------------------------------------
+
+    story.append(
+        Paragraph(
+            "Academic Input Details",
+            heading_style,
+        )
+    )
+
+    input_data = [
+        ["Input", "Entered Value"],
+        ["Daily study hours", f"{study_hours:.1f} hours"],
+        ["Attendance", f"{attendance:.0f}%"],
+        ["Previous score", f"{previous_score:.0f}/100"],
+        [
+            "Assignment completion",
+            f"{assignment_completion:.0f}%",
+        ],
+        ["Average sleep", f"{sleep_hours:.1f} hours/night"],
+    ]
+
+    input_table = Table(
+        input_data,
+        colWidths=[245, 225],
+        repeatRows=1,
+        hAlign="LEFT",
+    )
+
+    input_table.setStyle(
+        TableStyle(
+            [
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#164E63"),
+                ),
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.white,
+                ),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.lightgrey,
+                ),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+
+    story.append(input_table)
+    story.append(Spacer(1, 10))
+
+    # --------------------------------------------------
+    # Visual charts
+    # --------------------------------------------------
+
+    story.append(
+        Paragraph(
+            "Visual Summary",
+            heading_style,
+        )
+    )
+
+    # The first chart compares quantities measured on a 0-100 scale.
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(10, 3.2),
+    )
+
+    axes[0].bar(
+        [
+            "Predicted score",
+            "Attendance",
+            "Previous score",
+            "Assignments",
+        ],
+        [
+            predicted_score,
+            attendance,
+            previous_score,
+            assignment_completion,
+        ],
+    )
+
+    axes[0].set_ylim(0, 100)
+    axes[0].set_ylabel("Value")
+    axes[0].set_title("Scores and Academic Indicators")
+    axes[0].tick_params(
+        axis="x",
+        labelrotation=15,
+        labelsize=8,
+    )
+    axes[0].grid(
+        axis="y",
+        alpha=0.2,
+    )
+
+    # Study time and sleep use their own hours-based scale.
+    axes[1].bar(
+        [
+            "Study hours/day",
+            "Sleep hours/night",
+        ],
+        [
+            study_hours,
+            sleep_hours,
+        ],
+    )
+
+    axes[1].set_ylim(0, 10)
+    axes[1].set_ylabel("Hours")
+    axes[1].set_title("Daily Time Indicators")
+    axes[1].grid(
+        axis="y",
+        alpha=0.2,
+    )
+
+    fig.tight_layout()
+
+    chart_buffer = BytesIO()
+
+    fig.savefig(
+        chart_buffer,
+        format="png",
+        dpi=160,
+        bbox_inches="tight",
+    )
+
+    plt.close(fig)
+
+    chart_buffer.seek(0)
+
+    chart_image = ReportLabImage(
+        chart_buffer,
+        width=7.0 * inch,
+        height=2.4 * inch,
+        kind="proportional",
+    )
+
+    story.append(chart_image)
+    story.append(Spacer(1, 10))
+
+    # --------------------------------------------------
+    # Positive indicators
+    # --------------------------------------------------
+
+    story.append(
+        Paragraph(
+            "Positive Indicators",
+            heading_style,
+        )
+    )
+
+    if insight_strengths:
+
+        for strength in insight_strengths:
+            story.append(
+                Paragraph(
+                    "- " + escape(str(strength)),
+                    body_style,
+                )
+            )
+
+    else:
+
+        story.append(
+            Paragraph(
+                "No predefined positive indicators were flagged "
+                "by the current dashboard rules.",
+                body_style,
+            )
+        )
+
+    # --------------------------------------------------
+    # Personalized recommendations
+    # --------------------------------------------------
+
+    story.append(
+        Paragraph(
+            "Personalized Recommendations",
+            heading_style,
+        )
+    )
+
+    if insight_recommendations:
+
+        for item in insight_recommendations:
+
+            recommendation_content = [
+                Paragraph(
+                    (
+                        f"{escape(str(item['priority']))} Priority - "
+                        f"{escape(str(item['area']))}"
+                    ),
+                    recommendation_heading_style,
+                ),
+                Paragraph(
+                    (
+                        f"<b>Observation:</b> "
+                        f"{escape(str(item['observation']))}"
+                    ),
+                    body_style,
+                ),
+                Paragraph(
+                    (
+                        f"<b>Suggested action:</b> "
+                        f"{escape(str(item['action']))}"
+                    ),
+                    body_style,
+                ),
+                Spacer(1, 5),
+            ]
+
+            story.append(
+                KeepTogether(recommendation_content)
+            )
+
+    else:
+
+        story.append(
+            Paragraph(
+                "No recommendations are available for this report.",
+                body_style,
+            )
+        )
+
+    # --------------------------------------------------
+    # Model evaluation
+    # --------------------------------------------------
+
+    story.append(
+        Paragraph(
+            "Model Evaluation",
+            heading_style,
+        )
+    )
+
+    model_metrics = artifact.get("metrics", {})
+
+    def format_metric(value, digits=2):
+        if value is None:
+            return "N/A"
+
+        return f"{float(value):.{digits}f}"
+
+    model_data = [
+        ["Evaluation Metric", "Value"],
+        ["Mean Absolute Error (MAE)", format_metric(model_metrics.get("mae"))],
+        ["Root Mean Squared Error (RMSE)", format_metric(model_metrics.get("rmse"))],
+        ["R-squared (R2)", format_metric(model_metrics.get("r2"), 3)],
+        ["Training records", str(artifact.get("training_records", "N/A"))],
+        ["Testing records", str(artifact.get("testing_records", "N/A"))],
+    ]
+
+    model_table = Table(
+        model_data,
+        colWidths=[245, 225],
+        repeatRows=1,
+        hAlign="LEFT",
+    )
+
+    model_table.setStyle(
+        TableStyle(
+            [
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#164E63"),
+                ),
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.white,
+                ),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+
+    story.append(model_table)
+    story.append(Spacer(1, 12))
+
+    # --------------------------------------------------
+    # Important notes
+    # --------------------------------------------------
+
+    story.append(
+        Paragraph(
+            "Important Notes",
+            heading_style,
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "This application uses a machine-learning model trained "
+            "on synthetic educational data. Its score is an estimate, "
+            "not a guaranteed examination result.",
+            body_style,
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "Positive indicators and recommendations are generated "
+            "using predefined dashboard rules. They are intended for "
+            "educational guidance and should be considered alongside "
+            "actual assessments and feedback from teachers.",
+            body_style,
+        )
+    )
+
+    # --------------------------------------------------
+    # Footer and page numbers
+    # --------------------------------------------------
+
+    def draw_footer(canvas, doc):
+        canvas.saveState()
+
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#64748B"))
+
+        canvas.drawString(
+            42,
+            24,
+            "Student Performance Predictor",
+        )
+
+        canvas.drawRightString(
+            page_width - 42,
+            24,
+            f"Page {doc.page}",
+        )
+
+        canvas.restoreState()
+
+    document.build(
+        story,
+        onFirstPage=draw_footer,
+        onLaterPages=draw_footer,
+    )
+
+    pdf_buffer.seek(0)
+
+    return pdf_buffer.getvalue()
+
+
+# --------------------------------------------------
+# PDF download button
+# --------------------------------------------------
+
+try:
+
+    pdf_report_data = create_student_performance_pdf()
+
+    st.download_button(
+        label="📄 Download Student Performance Report (PDF)",
+        data=pdf_report_data,
+        file_name="student_performance_report.pdf",
+        mime="application/pdf",
+        key="download_student_performance_pdf",
+    )
+
+except Exception as error:
+
+    st.error(
+        f"Could not generate the PDF report: {error}"
+    )
 
 st.caption(
     "The positive-indicator and review thresholds are demonstration "
