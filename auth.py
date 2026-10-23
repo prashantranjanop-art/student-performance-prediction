@@ -88,34 +88,36 @@ def get_auth_client():
     return client
 
 def store_auth_session(response, fallback_email=""):
-    """Store the authenticated user's session in Streamlit state."""
+    """Store the authenticated user's session safely."""
+
     session = getattr(response, "session", None)
     user = getattr(response, "user", None)
 
     if session is None or user is None:
         return False
 
+    # Save the authentication tokens for this user session.
     st.session_state["_supabase_access_token"] = (
         session.access_token
     )
+
     st.session_state["_supabase_refresh_token"] = (
         session.refresh_token
     )
+
     st.session_state["supabase_user_id"] = str(user.id)
+
     st.session_state["supabase_user_email"] = (
         getattr(user, "email", None) or fallback_email
     )
-        # Apply the user's access token to PostgREST immediately after login.
+
+    # Attach the user's access token to database requests.
     client = st.session_state.get("_supabase_auth_client")
 
     if client is not None:
         client.postgrest.auth(session.access_token)
+
     return True
-        # Ensure database requests use the signed-in user's JWT.
-    client = st.session_state.get("_supabase_auth_client")
-
-    if client is not None:
-        client.postgrest.auth(session.access_token)
 
 def render_auth_gate():
     """Show login/registration and stop access until signed in."""
