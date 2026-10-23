@@ -388,17 +388,17 @@ try:
 
         if database.using_supabase():
             st.caption(
-        "🛡️ Clearing shared cloud prediction history "
-        "is disabled to protect saved records."
-    )
+                "🛡️ Clearing shared cloud prediction history "
+                "is disabled to protect saved records."
+            )
         else:
             if st.button(
-        "🗑️ Clear Prediction History",
-        key="clear_prediction_history_btn",
-    ):
+                "🗑️ Clear Prediction History",
+                key="clear_prediction_history_btn",
+            ):
                 database.delete_all_predictions()
-        st.session_state["prediction_save_message"] = None
-        st.rerun()
+                st.session_state["prediction_save_message"] = None
+                st.rerun()
 
     else:
         st.info(
