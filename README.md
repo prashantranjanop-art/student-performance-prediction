@@ -1,5 +1,7 @@
 # 🎓 AI-Based Student Performance Prediction
 
+[![Student Predictor Tests](https://github.com/prashantranjanop-art/student-performance-prediction/actions/workflows/tests.yml/badge.svg)](https://github.com/prashantranjanop-art/student-performance-prediction/actions/workflows/tests.yml)
+
 An interactive machine learning application that estimates student academic performance using study habits, attendance, previous scores, assignment completion, and sleep duration.
 
 **Live Demo:** [Open Student Performance Predictor](https://student-performance-prediction-we9wqmajereaupbt67ruke.streamlit.app/)
@@ -251,16 +253,15 @@ Deployments depend on the compatibility of the configured Python version and the
 
 ### Main Dashboard
 
-![Student Performance Prediction Dashboard](screenshots/dashboard.png)
+![Student Performance Predictor Dashboard](screenshots/dashboard.png)
 
 ### Prediction History
 
-![Prediction History and CSV Export](screenshots/prediction_history.png)
+![Student Prediction History](screenshots/prediction_history.png)
 
 ### Dataset Analytics
 
 ![Student Performance Analytics](screenshots/analytics.png)
-
 ## 🔍 Limitations
 
 * The training dataset contains synthetic educational data.
@@ -272,13 +273,11 @@ Deployments depend on the compatibility of the configured Python version and the
 
 ## 🛣️ Future Improvements
 
-Possible future work includes:
-
-* Automated unit and integration tests.
-* More systematic model validation and experiment tracking.
-* Evaluation using suitable real-world educational data, where authorized and ethically collected.
-* Improved accessibility and user-interface testing.
-* Monitoring and handling of database and authentication failures.
+- Expand automated test coverage to include authentication and database security integration tests.
+- Improve model validation and experiment tracking.
+- Evaluate the model using suitable real-world educational data when authorized and ethically collected.
+- Improve accessibility and user-interface testing.
+- Add monitoring for authentication, database, and deployment failures.
 
 ## 👨‍💻 Author
 
