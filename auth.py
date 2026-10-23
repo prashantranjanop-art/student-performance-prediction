@@ -26,58 +26,62 @@ def get_auth_client():
 
     if url.endswith("/rest/v1"):
         raise RuntimeError(
-            "Use the base Supabase Project URL without /rest/v1/."
+            "Use the base Project URL without /rest/v1/."
         )
 
-    # Create a client for this Streamlit user's session.
+    # Reuse the client belonging to this user's Streamlit session.
     client = st.session_state.get("_supabase_auth_client")
 
     if client is None:
         client = create_client(url, key)
         st.session_state["_supabase_auth_client"] = client
 
-    # Retrieve the current authentication tokens.
-    access_token = st.session_state.get(
-        "_supabase_access_token"
-    )
-    refresh_token = st.session_state.get(
-        "_supabase_refresh_token"
-    )
-
-    # Recover the authenticated session if necessary.
+    # Retrieve the session currently held by the client.
     try:
         session = client.auth.get_session()
     except Exception:
         session = None
 
-    if session is None and access_token and refresh_token:
+    # Restore the session when necessary.
+    saved_access_token = st.session_state.get(
+        "_supabase_access_token"
+    )
+    saved_refresh_token = st.session_state.get(
+        "_supabase_refresh_token"
+    )
+
+    if session is None and saved_access_token and saved_refresh_token:
         try:
             response = client.auth.set_session(
-                access_token,
-                refresh_token,
+                saved_access_token,
+                saved_refresh_token,
             )
             session = getattr(response, "session", None)
-
         except Exception:
             session = None
 
-    # Explicitly attach the current JWT to database requests.
-    if session is not None and session.access_token:
+    # Synchronize Streamlit state with the current session.
+    access_token = saved_access_token
 
+    if session is not None:
         access_token = session.access_token
-        refresh_token = session.refresh_token
 
-        st.session_state["_supabase_access_token"] = access_token
-        st.session_state["_supabase_refresh_token"] = refresh_token
+        st.session_state["_supabase_access_token"] = (
+            session.access_token
+        )
+        st.session_state["_supabase_refresh_token"] = (
+            session.refresh_token
+        )
 
-        if session.user:
-            st.session_state["supabase_user_id"] = str(
-                session.user.id
-            )
+        user = getattr(session, "user", None)
+
+        if user is not None:
+            st.session_state["supabase_user_id"] = str(user.id)
             st.session_state["supabase_user_email"] = (
-                session.user.email or ""
+                user.email or ""
             )
 
+    # IMPORTANT: Attach the authenticated user's JWT to database requests.
     if access_token:
         client.postgrest.auth(access_token)
 
@@ -101,7 +105,11 @@ def store_auth_session(response, fallback_email=""):
     st.session_state["supabase_user_email"] = (
         getattr(user, "email", None) or fallback_email
     )
+        # Apply the user's access token to PostgREST immediately after login.
+    client = st.session_state.get("_supabase_auth_client")
 
+    if client is not None:
+        client.postgrest.auth(session.access_token)
     return True
         # Ensure database requests use the signed-in user's JWT.
     client = st.session_state.get("_supabase_auth_client")
