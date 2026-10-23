@@ -2,6 +2,9 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 
+import streamlit as st
+
+
 # --------------------------------------------------
 # Local SQLite configuration
 # --------------------------------------------------
@@ -10,58 +13,60 @@ BASE_DIR = Path(__file__).resolve().parent
 DATABASE_DIR = BASE_DIR / "data"
 DATABASE_PATH = DATABASE_DIR / "predictions.db"
 
+
 # --------------------------------------------------
-# Supabase client configuration
+# Supabase configuration
 # --------------------------------------------------
 
-_supabase_client = None
-_supabase_checked = False
+def _supabase_configured():
+    """Check whether Supabase credentials are configured."""
 
-
-def _get_supabase_client():
-    """Return the configured Supabase client, if available."""
-
-    global _supabase_client, _supabase_checked
-
-    if _supabase_checked:
-        return _supabase_client
-
-    # No configured Supabase secrets? Use local SQLite.
     try:
-        import streamlit as st
         settings = st.secrets.get("supabase", {})
+
+        return bool(
+            settings.get("url")
+            and settings.get("key")
+        )
+
     except Exception:
-        settings = {}
-
-    if not settings:
-        _supabase_checked = True
-        return None
-
-    url = str(settings.get("url", "")).strip().rstrip("/")
-    key = str(settings.get("key", "")).strip()
-
-    if not url or not key:
-        raise RuntimeError(
-            "Supabase configuration is incomplete. "
-            "Check the url and key in .streamlit/secrets.toml."
-        )
-
-    if url.endswith("/rest/v1"):
-        raise RuntimeError(
-            "Use the base Supabase Project URL without /rest/v1/."
-        )
-
-    from supabase import create_client
-
-    _supabase_client = create_client(url, key)
-    _supabase_checked = True
-
-    return _supabase_client
+        return False
 
 
 def using_supabase():
-    """Return True when Supabase is configured."""
-    return _get_supabase_client() is not None
+    """Return True when the application uses Supabase."""
+
+    return _supabase_configured()
+
+
+def _get_current_user_id():
+    """Return the logged-in user's ID."""
+
+    if not _supabase_configured():
+        return None
+
+    user_id = st.session_state.get("supabase_user_id")
+
+    if not user_id:
+        raise PermissionError(
+            "Please log in before accessing prediction history."
+        )
+
+    return str(user_id)
+
+
+def _get_supabase_client():
+    """Use the authenticated client belonging to this session."""
+
+    if not _supabase_configured():
+        return None
+
+    _get_current_user_id()
+
+    # Reuse the session-specific client from auth.py.
+    from auth import get_auth_client
+
+    return get_auth_client()
 
 
 # --------------------------------------------------
@@ -69,9 +74,12 @@ def using_supabase():
 # --------------------------------------------------
 
 def get_connection():
-    """Create a connection to the local SQLite database."""
+    """Connect to the local SQLite database."""
 
-    DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+    DATABASE_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
@@ -84,10 +92,13 @@ def get_connection():
 # --------------------------------------------------
 
 def initialize_database():
-    """Initialize SQLite when Supabase is not configured."""
+    """
+    Initialize SQLite for local development.
 
-    if _get_supabase_client() is not None:
-        # The predictions table already exists in Supabase.
+    Supabase tables are managed through the Supabase dashboard.
+    """
+
+    if _supabase_configured():
         return
 
     with get_connection() as connection:
@@ -121,34 +132,44 @@ def save_prediction(
     predicted_score,
     performance,
 ):
-    """Save a prediction to Supabase or local SQLite."""
+    """Save a prediction to the appropriate database."""
 
     client = _get_supabase_client()
 
     if client is not None:
+
+        user_id = _get_current_user_id()
+
         record = {
+            "user_id": user_id,
             "study_hours": float(study_hours),
             "attendance": float(attendance),
             "previous_score": float(previous_score),
-            "assignment_completion": float(assignment_completion),
+            "assignment_completion": float(
+                assignment_completion
+            ),
             "sleep_hours": float(sleep_hours),
             "predicted_score": float(predicted_score),
             "performance": str(performance),
         }
 
         response = (
-            client.table("predictions")
+            client
+            .table("predictions")
             .insert(record)
+            .select("id")
             .execute()
         )
 
         if not response.data:
             raise RuntimeError(
-                "Supabase did not return the saved prediction."
+                "The prediction could not be confirmed "
+                "as saved in Supabase."
             )
 
         return int(response.data[0]["id"])
 
+    # Local SQLite mode
     created_at = datetime.now().astimezone().isoformat(
         timespec="seconds"
     )
@@ -188,20 +209,26 @@ def save_prediction(
 # --------------------------------------------------
 
 def get_all_predictions():
-    """Retrieve all saved predictions, newest first."""
+    """Retrieve only the current user's predictions."""
 
     client = _get_supabase_client()
 
     if client is not None:
+
+        user_id = _get_current_user_id()
+
         response = (
-            client.table("predictions")
+            client
+            .table("predictions")
             .select("*")
+            .eq("user_id", user_id)
             .order("id", desc=True)
             .execute()
         )
 
         return response.data or []
 
+    # Local SQLite mode
     with get_connection() as connection:
         rows = connection.execute(
             """
@@ -219,13 +246,18 @@ def get_all_predictions():
 # --------------------------------------------------
 
 def delete_all_predictions():
-    """Clear local SQLite history only."""
+    """
+    Allow clearing local SQLite history only.
 
-    if _get_supabase_client() is not None:
+    Public cloud users must not clear shared records.
+    """
+
+    if _supabase_configured():
         raise RuntimeError(
-            "Clearing shared cloud history is disabled "
-            "to protect saved records."
+            "Clearing cloud prediction history is disabled."
         )
 
     with get_connection() as connection:
-        connection.execute("DELETE FROM predictions")
+        connection.execute(
+            "DELETE FROM predictions"
+        )

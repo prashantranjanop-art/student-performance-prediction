@@ -23,6 +23,10 @@ st.set_page_config(
     layout="wide",
 )
 
+from auth import render_auth_gate
+
+if not render_auth_gate():
+    st.stop()
 
 # --------------------------------------------------
 # Load model and dataset
